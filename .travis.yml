@@ -1,38 +1,48 @@
 language: android
 jdk: oraclejdk8
-
 before_cache:
-  - cd ${TRAVIS_BUILD_DIR}/gradle/caches/
-  - find . -name "*.lock" -exec rm -rfv {} \;
-  - cd ${TRAVIS_BUILD_DIR}
-
+- cd ${TRAVIS_BUILD_DIR}/gradle/caches/
+- find . -name "*.lock" -exec rm -rfv {} \;
+- cd ${TRAVIS_BUILD_DIR}
 cache:
   directories:
-    - ${TRAVIS_BUILD_DIR}/gradle/caches/
-    - ${TRAVIS_BUILD_DIR}/gradle/wrapper/dists/
-
+  - "${TRAVIS_BUILD_DIR}/gradle/caches/"
+  - "${TRAVIS_BUILD_DIR}/gradle/wrapper/dists/"
+env:
+  global:
+    secure: dIQaquV2WG3iE2v321SiYQUJf8Pq0WhGdD7jA73w61sk7+nHiBsUhepU07GIObswli91c484FO/VwbA/UeahvhWeulo1yttgKYyvg7rgkdO3d91wc8TIO9mt+VmsDjwa9iBSGbKohre2UA7ei0ejanZ9KLIhbl3wEi7ynU5+mieY5oP7r8QwDTHdQ9WudV8dBFlEeHP/kxQQ4/v3hIPq3vdaeO7zV5VlTsx9Ir8oiQKOXm6i44fupbJF5q5k8alX2whFhApW8KE0S3jthgxjT7TLrok6O3nKDXgR4TYjVlHw7WHi+MazxLt+EjpPNJNHO0J6PbYvYd/O5zuPdaSwkaKvm+GH+m7kWpmVCmqCrwMtEkd26Tz2iNThRUdfcfRdGxfwBpVk9U+AHJv3cC+wtwTMKjiD4AFHFmrrR9qvhAlc/W9+unT3Fp16kj0J/EszzM2QoQfYWEpBJnJ3DQcwX0W3rpaFfRJEW5UsqAc2H2p/MNFrBnJgAzlI0FmxuznsxeREf3DINxjJ7gLJQh3R+i43sJQvb8+JLv/ivDc5UOIW6JShSD5bYPPMJAYrKZRHU68ziKql4MN10u8R1SmZK3xi74II8xoZh1qhjMpZoD3dZtEkTKgr+I6hhxwXtd7T4pLA3NdXfFoK3RIUNn9e8FCJEBEctRiAuGqaeQnfBKQ=
 notifications:
   email: false
-
 android:
-  components: # Cookbooks version: https://github.com/travis-ci/travis-cookbooks/tree/9c6cd11
-    - tools # Update preinstalled tools from revision 24.0.2 to 24.4.1
-    - build-tools-25.0.2 # Match build-tools version used in build.gradle
-    - platform-tools # Update platform-tools to revision 25.0.3+
-    - tools # Update tools from revision 24.4.1 to 25.2.5
-
+  components:
+  - tools
+  - build-tools-25.0.2
+  - platform-tools
+  - tools
 install:
-  - echo yes | sdkmanager "extras;m2repository;com;android;support;constraint;constraint-layout;1.0.2"
-  - echo yes | sdkmanager "extras;m2repository;com;android;support;constraint;constraint-layout-solver;1.0.2"
-  # Show version and download Gradle Wrapper if it's not already cached
-  - ./gradlew --version
-  # Check components status
-  - sdkmanager --list || true
-
+- echo yes | sdkmanager "extras;m2repository;com;android;support;constraint;constraint-layout;1.0.2"
+- echo yes | sdkmanager "extras;m2repository;com;android;support;constraint;constraint-layout-solver;1.0.2"
+- "./gradlew --version"
+- sdkmanager --list || true
 script:
-  - ./gradlew clean build
-  - ./gradlew test
-  
+- "./gradlew clean build"
+- "./gradlew test"
 after_script:
-  # Show lint results
-  - cat ${TRAVIS_BUILD_DIR}/*/build/reports/lint-results.xml
+- cat ${TRAVIS_BUILD_DIR}/*/build/reports/lint-results.xml
+before_deploy:
+- cd mobile/build/outputs/apk/
+- openssl aes-256-cbc -K $encrypted_903a93ed2309_key -iv $encrypted_903a93ed2309_iv -in keystore.enc -out keystore -d
+- jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore $HOME/keystore -storepass $storepass mobile-release-unsigned.apk sign
+- jarsigner -verify mobile-release-unsigned.apk
+- "${ANDROID_HOME}/build-tools/25.0.2/zipalign -v 4 mobile-release-unsigned.apk mobile-release.apk"
+deploy:
+  provider: releases
+  prerelease: true
+  file: mobile-release.apk
+  skip_cleanup: true
+  on:
+    repo: digitaldan/openhab.android
+    tags: true
+    jdk: oraclejdk8
+  api_key: 
+    secure: "DgfPKGvRD9BEUHw8749KWEwm/huLK8o4B0Iol0ShQ49L8+XOp+2lIDeJOzgMWnAFh3IWGQqQmh3XEl5JJe4bb1USAksHxCsfUU6OukSiSPXoIAnURfDAURLBUboBGf7bsQKdwpXfJogRKAETmUW/yTxJidNBS0q+yuEqMgLPcS0HDQHQacz0OYWqumlfhCBH/NyDIosCcSsXnxrYCYbFh+hZ1NpgTWvOmPEVg6sBgTGT5CCFwG5Ctvum50zIQyq80Q7kSzwA85ePlE5fmnmIK5tBcRP8w9XFYoEs+A5866Lb/DDhFMGqlNdKzr43bE6wnFEpB75nZzMKmRpP5QEhSN1kM8WNREWj00WW+XXV4JLiGprRAf7zaDFnJtfaQ24F8Kn0HsdpPf32d0kaMuanIs57P8dU7MUXZlMj3z6vGwVis0TvcsIfCypQwiaYDH6uEwHZ0aUYHiFsJio0Rv+XoI5LxWIjUit3M7ItjO6B4oy7xgJG/zxb4RjYN3VaMTBPk0mkztSXQ2RHuhZl8gJElsdWqREdblI+ku85RCAnucNweqxwvp/e5bcFCCspq5q3SKoakvMQc261MI0tHapkoowkigan6czl2IXhUv+IP2JJ6eOl/V/oydti7d3slQy1drYi/cO2Cwas7aIocaOwOlSceehXI26Ofgm62sF5TvQ="
