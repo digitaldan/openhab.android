@@ -20,6 +20,7 @@ android:
   - platform-tools
   - tools
 install:
+- openssl aes-256-cbc -K $encrypted_903a93ed2309_key -iv $encrypted_903a93ed2309_iv -in keystore.enc -out keystore -d
 - echo yes | sdkmanager "extras;m2repository;com;android;support;constraint;constraint-layout;1.0.2"
 - echo yes | sdkmanager "extras;m2repository;com;android;support;constraint;constraint-layout-solver;1.0.2"
 - "./gradlew --version"
@@ -30,8 +31,8 @@ script:
 after_script:
 - cat ${TRAVIS_BUILD_DIR}/*/build/reports/lint-results.xml
 before_deploy:
+- cp $TRAVIS_BUILD_DIR/keystore $HOME
 - cd mobile/build/outputs/apk/
-- openssl aes-256-cbc -K $encrypted_903a93ed2309_key -iv $encrypted_903a93ed2309_iv -in  $HOME/keystore.enc -out  $HOME/keystore -d
 - jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore $HOME/keystore -storepass $storepass mobile-release-unsigned.apk sign
 - jarsigner -verify mobile-release-unsigned.apk
 - "${ANDROID_HOME}/build-tools/25.0.2/zipalign -v 4 mobile-release-unsigned.apk mobile-release.apk"
